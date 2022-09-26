@@ -1,0 +1,14 @@
+# old agent config
+old:
+  host: 82.157.57.48
+  web_port: 8303
+  path: /home/zc-agent/
+  token: 63YTYmrlDwVxA22VAsQgr2kBt9FTdRck
+# new agent config
+new:
+  host: 82.157.57.48
+  web_port: 8978
+dp:
+  host: 81.70.62.93
+  web_port: 5000
+  token: MNdzJaC/36c6xgXbDvppsCvJx0Thy564ZjAGmN8Tv1vxfhMUuJeOLxghz1Oq07Wk
