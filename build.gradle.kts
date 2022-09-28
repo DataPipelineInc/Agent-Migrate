@@ -4,7 +4,7 @@ plugins {
     kotlin("jvm") version "1.7.10"
 }
 
-group = "org.example"
+group = "com.datapipeline"
 version = "1.0-SNAPSHOT"
 
 repositories {
@@ -27,6 +27,15 @@ dependencies {
     implementation(libs.bundles.konf)
     implementation(libs.bundles.jdbc)
     testImplementation(kotlin("test"))
+}
+
+tasks.jar {
+    manifest {
+        attributes("Main-Class" to "com.datapipeline.agent.ConfigMigrationKt")
+    }
+    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude("META-INF/*.RSA", "META-INF/*.SF", "META-INF/*.DSA")
 }
 
 tasks.test {

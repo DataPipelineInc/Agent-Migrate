@@ -1,4 +1,4 @@
-rootProject.name = "agent-migrate1"
+rootProject.name = "agent-migrate"
 
 dependencyResolutionManagement {
     versionCatalogs {
