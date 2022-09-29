@@ -21,11 +21,11 @@ repositories {
 
 dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.4")
+    implementation("com.oracle:ojdbc8:12.2.0.1")
     implementation("io.vertx:vertx-web-client:4.3.3")
     implementation("org.apache.kafka:kafka-clients:3.1.0")
     implementation(libs.bundles.klog)
     implementation(libs.bundles.konf)
-    implementation(libs.bundles.jdbc)
     testImplementation(kotlin("test"))
 }
 

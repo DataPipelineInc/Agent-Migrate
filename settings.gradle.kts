@@ -13,11 +13,6 @@ dependencyResolutionManagement {
             library("konf-core", "com.uchuhimo:konf-core:1.1.2")
             library("konf-yaml", "com.uchuhimo:konf-yaml:1.1.2")
             bundle("konf", listOf("konf-base", "konf-core", "konf-yaml"))
-
-            library("ojdbc", "com.oracle:ojdbc8:12.2.0.1")
-            library("cp", "com.zaxxer:HikariCP:3.4.5")
-            library("kjdbc", "com.vladsch.kotlin-jdbc:kotlin-jdbc:0.5.0")
-            bundle("jdbc", listOf("ojdbc", "cp", "kjdbc"))
         }
     }
 }

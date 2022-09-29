@@ -26,11 +26,16 @@ class DataMigration : AbstractMigration(), Migrate {
     override fun migrate() {
         val errorArgs = mutableMapOf<String, Any>()
         try {
+            val conf_result = com.uchuhimo.konf.Config {
+                addSpec(SrcSpec)
+                addSpec(AsmSpec)
+            }.from.json.file(RESULT_CONF_PATH, true)
+                .from.env()
             val srcId = conf_result[SrcSpec.id]
             val taskIds = getTaskIds(srcId)
             // 初始化 Kafka 配置
             val properties = Properties()
-            properties["bootstrap.servers"] = "81.70.62.93:9091"
+            properties["bootstrap.servers"] = dp_conf[DpConfSpec.kafka_bootstrap_servers]
             properties["key.deserializer"] = "org.apache.kafka.common.serialization.StringDeserializer"
             properties["value.deserializer"] = "org.apache.kafka.common.serialization.StringDeserializer"
             properties["auto.offset.reset"] = "earliest"

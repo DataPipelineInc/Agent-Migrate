@@ -23,6 +23,7 @@ object NewConfSpec : ConfigSpec("new") {
 object DpConfSpec : ConfigSpec("dp") {
     val host by required<String>()
     val web_port by required<Int>()
+    val kafka_bootstrap_servers by required<String>()
     val token by required<String>()
 }
 
@@ -64,12 +65,6 @@ val dp_conf = com.uchuhimo.konf.Config {
     addSpec(DpConfSpec)
 }.enable(Feature.OPTIONAL_SOURCE_BY_DEFAULT)
     .from.yaml.file(CONF_PATH)
-    .from.env()
-
-val conf_result = com.uchuhimo.konf.Config {
-    addSpec(SrcSpec)
-    addSpec(AsmSpec)
-}.from.json.file(RESULT_CONF_PATH, true)
     .from.env()
 
 val data_result = com.uchuhimo.konf.Config {

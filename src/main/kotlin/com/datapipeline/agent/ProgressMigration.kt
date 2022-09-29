@@ -5,15 +5,18 @@ import com.datapipeline.agent.entity.Trans
 import io.vertx.core.http.HttpMethod.GET
 import io.vertx.core.http.HttpMethod.POST
 import io.vertx.core.json.JsonArray
-import com.datapipeline.agent.util.getSeqByScn
 import com.datapipeline.agent.util.sendRequest
 import kotlin.math.min
 
 class ProgressMigration : AbstractMigration(), Migrate {
 
     override fun migrate() {
-        val source = DataSource(conf_result[SrcSpec.login])
         try {
+            val conf_result = com.uchuhimo.konf.Config {
+                addSpec(SrcSpec)
+                addSpec(AsmSpec)
+            }.from.json.file(RESULT_CONF_PATH, true)
+                .from.env()
             val srcId = conf_result[SrcSpec.id]
             // 停止旧 agent
             val stopResp = sendRequest(Config.OLD_AGENT, POST, "/fzsstop", timeoutMs = 60000L)
@@ -46,8 +49,13 @@ class ProgressMigration : AbstractMigration(), Migrate {
                     val minScn = minScnList[threadId]
                     minScnList[threadId] = if (minScn != null) min(minScn, trans.scn_bgn.scn) else trans.scn_bgn.scn
                 }
-                // 数据库查询对应的 Sequence
-                savepoints.addAll(getSeqByScn(source.get(), minScnList))
+                val minScnJson = jsonFactory.objectNode().also {
+                    minScnList.forEach { (t, u) -> it.put(t.toString(), u) }
+                }
+                // 调用新agent 接口，在数据库查询对应的 Sequence
+                sendRequest(Config.NEW_AGENT, POST, "/tools/seqByScn", minScnJson).bodyAsJsonObject().onEach {
+                    savepoints.add(Savepoint(it.key.toInt(), it.value.toString().toLong(), 0, 0, 0))
+                }
             } else {
                 // translist 无数据，则直接使用旧 agent 的 savepoint 信息
                 val array =
@@ -62,8 +70,6 @@ class ProgressMigration : AbstractMigration(), Migrate {
             onComplete("进度迁移执行完成", null)
         } catch (e: Exception) {
             onError(e)
-        } finally {
-            source.close()
         }
     }
 
