@@ -16,6 +16,7 @@ object OldConfSpec : ConfigSpec("old") {
 }
 
 object NewConfSpec : ConfigSpec("new") {
+    val src_id by required<Int>()
     val host by required<String>()
     val web_port by optional(8888)
 }

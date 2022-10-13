@@ -16,14 +16,6 @@ class ConfigMigration : AbstractMigration(), Migrate {
 
     override fun migrate() {
         try {
-            // 获取旧 agent 的数据库配置信息
-            val oldConfResp = sendRequest(Config.NEW_AGENT, GET, "/config/old?path=${old_conf[OldConfSpec.path]}")
-            val oldConf = oldConfResp.bodyAsJson(ExportConfig::class.java)
-            // 持久化
-            val srcId = oldConf.src_id.toInt()
-            val src = jsonFactory.objectNode().put("id", srcId).put("login", oldConf.src_login)
-            val jsonObj = jsonFactory.objectNode().also { it.set<JsonNode>("src", src) }
-            swapAndWrite(RESULT_CONF_PATH, jsonObj.toPrettyString())
             // 获取旧 agent 同步对象
             val mapResp = sendRequest(Config.OLD_AGENT, GET, "/getusermap")
             val mapArray = mapResp.bodyAsJsonArray()
@@ -38,7 +30,7 @@ class ConfigMigration : AbstractMigration(), Migrate {
                 }
                 // 用户级别或全库级别，查找关联的运行中任务并获取列表
                 "map_user", "map_db" -> {
-                    getTaskIds(srcId).forEach {
+                    getTaskIds(new_conf[NewConfSpec.src_id]).forEach {
                         val entitiesResp = sendRequest(Config.DP, GET, "/v3/entity/mappings/task/$it")
                         val apiResult = mapper.readValue(entitiesResp.bodyAsString(), ApiResult::class.java)
                         val apiData =
@@ -58,28 +50,28 @@ class ConfigMigration : AbstractMigration(), Migrate {
             } else {
                 // 修改新 agent 的 map.yml
                 sendRequest(Config.NEW_AGENT, POST, "/export/tables", JsonArray(list), 60000L, listOf(200, 201))
-                // 修改新 agent 的 oracle.yml
+                // 获取旧 agent 的数据库配置信息并持久化
+                val oldConfResp = sendRequest(Config.NEW_AGENT, GET, "/config/old?path=${old_conf[OldConfSpec.path]}")
+                val oldConf = oldConfResp.bodyAsJson(ExportConfig::class.java)
                 val oracleNodeConfig = getOracleConf(oldConf.src_login)
                 val asmCut = oldConf.asm_login.cutHalf("@")
                 val asmLogin = asmCut.first.cutHalf("/")
                 val mode = oldConf.asm_mode.uppercase()
-                val oragentConfig = OragentConfig(
-                    srcId, Mode.valueOf(mode),
+                OragentConfig(
+                    new_conf[NewConfSpec.src_id],
+                    Mode.valueOf(mode),
                     connectionString = asmCut.second,
                     asmUser = asmLogin.first,
                     asmPassword = asmLogin.second,
                     oracleHome = oldConf.asm_oracle_home,
                     sid = oldConf.asm_oracle_sid
-                )
-                oracleNodeConfig.oragentConfig = oragentConfig
-                val asm = jsonFactory.objectNode().put("mode", mode)
-                    .put("connectionString", oragentConfig.connectionString)
-                    .put("asmUser", oragentConfig.asmUser)
-                    .put("asmPassword", oragentConfig.asmPassword)
-                    .put("oracleHome", oragentConfig.oracleHome)
-                    .put("sid", oragentConfig.sid)
-                jsonObj.set<JsonNode>("asm", asm)
+                ).also { oracleNodeConfig.oragentConfig = it }
+                val jsonObj = jsonFactory.objectNode().also {
+                    it.set<JsonNode>("old_conf", jsonFactory.pojoNode(oldConf))
+                    it.set<JsonNode>("node_config", jsonFactory.pojoNode(oracleNodeConfig))
+                }
                 swapAndWrite(RESULT_CONF_PATH, jsonObj.toPrettyString())
+                // 修改新 agent 的 oracle.yml
                 sendRequest(Config.NEW_AGENT, POST, "/config/", JsonNodeFactory.instance.pojoNode(oracleNodeConfig))
                 onComplete("配置迁移执行完成", mapOf("CONTINUE" to "true"))
             }

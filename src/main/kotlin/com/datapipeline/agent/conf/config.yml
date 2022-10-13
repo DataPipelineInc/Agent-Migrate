@@ -6,6 +6,7 @@ old:
   token: 63YTYmrlDwVxA22VAsQgr2kBt9FTdRck
 # new agent config
 new:
+  src_id: 1
   host: 82.157.57.48
   web_port: 8978
 dp:

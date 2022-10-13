@@ -12,12 +12,6 @@ class ProgressMigration : AbstractMigration(), Migrate {
 
     override fun migrate() {
         try {
-            val conf_result = com.uchuhimo.konf.Config {
-                addSpec(SrcSpec)
-                addSpec(AsmSpec)
-            }.from.json.file(RESULT_CONF_PATH, true)
-                .from.env()
-            val srcId = conf_result[SrcSpec.id]
             // 停止旧 agent
             val stopResp = sendRequest(Config.OLD_AGENT, POST, "/fzsstop", timeoutMs = 60000L)
             val stopBody = stopResp.bodyAsString()
@@ -28,19 +22,18 @@ class ProgressMigration : AbstractMigration(), Migrate {
             val oldSavepointResp = sendRequest(
                 Config.NEW_AGENT,
                 GET,
-                "/export/old/savepoint/${srcId}?path=${old_conf[OldConfSpec.path]}"
+                "/export/old/savepoint/1?path=${old_conf[OldConfSpec.path]}"
             )
             // 读取旧 agent 的 translist
             val oldTransResp = sendRequest(
                 Config.NEW_AGENT,
                 GET,
-                "/export/old/translist/${srcId}?path=${old_conf[OldConfSpec.path]}"
+                "/export/old/translist/1?path=${old_conf[OldConfSpec.path]}"
             )
             val savepoints = arrayListOf<Savepoint>()
             val transArray = oldTransResp.bodyAsJsonArray()
             if (!transArray.isEmpty) {
                 // translist 存在数据（包含未提交事务）
-                sendRequest(Config.NEW_AGENT, POST, "/export/translist", transArray)
                 // 寻找每个 Thread 所对应的最小 scn
                 val minScnList = mutableMapOf<Int, Long>()
                 for (i in 0 until transArray.size()) {
@@ -76,7 +69,6 @@ class ProgressMigration : AbstractMigration(), Migrate {
     override fun onError(e: Throwable, args: Map<String, Any>?) {
         LOGGER.error("Exception:${e.message}", e)
         sendRequest(Config.NEW_AGENT, POST, "/export/savepoint/full", JsonArray())
-        sendRequest(Config.NEW_AGENT, POST, "/export/translist", JsonArray())
         sendRequest(Config.OLD_AGENT, POST, "/fzsstart")
         throw e
     }

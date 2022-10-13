@@ -31,7 +31,7 @@ class DataMigration : AbstractMigration(), Migrate {
                 addSpec(AsmSpec)
             }.from.json.file(RESULT_CONF_PATH, true)
                 .from.env()
-            val srcId = conf_result[SrcSpec.id]
+            val srcId = new_conf[NewConfSpec.src_id]
             val taskIds = getTaskIds(srcId)
             // 初始化 Kafka 配置
             val properties = Properties()
