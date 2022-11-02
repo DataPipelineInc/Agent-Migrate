@@ -14,7 +14,15 @@ data class OragentConfig(
     val bigEndian: Boolean = false,
 ) {
     companion object {
-        val DEFAULT = OragentConfig(1, Mode.DB)
+        val DEFAULT = OragentConfig(
+            1,
+            Mode.DB,
+            connectionString = "//10.10.10.20:1521/+ASM",
+            asmUser = "asmUser as sysdba",
+            asmPassword = "asmPassword",
+            oracleHome = "",
+            sid = ""
+        )
     }
 }
 

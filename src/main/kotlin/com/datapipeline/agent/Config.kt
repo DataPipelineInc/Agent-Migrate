@@ -1,5 +1,6 @@
 package com.datapipeline.agent
 
+import com.datapipeline.agent.entity.AsmDiskInfo
 import com.uchuhimo.konf.ConfigSpec
 import com.uchuhimo.konf.Feature
 import com.uchuhimo.konf.source.yaml
@@ -19,6 +20,7 @@ object NewConfSpec : ConfigSpec("new") {
     val src_id by required<Int>()
     val host by required<String>()
     val web_port by optional(8888)
+    val migrate_topic_format by optional("avro")
 }
 
 object DpConfSpec : ConfigSpec("dp") {
@@ -35,11 +37,13 @@ object SrcSpec : ConfigSpec() {
 
 object AsmSpec : ConfigSpec() {
     val mode by optional("RAW")
-    val connectionString by required<String>()
-    val asmUser by required<String>()
-    val asmPassword by required<String>()
-    val oracleHome by required<String>()
-    val sid by required<String>()
+    val connectionString by optional("")
+    val asmUser by optional("")
+    val asmPassword by optional("")
+    val oracleHome by optional("")
+    val sid by optional("")
+    val asmDisks by optional<List<AsmDiskInfo>>(emptyList())
+    val bigEndian by optional(false)
 }
 
 object DataSpec : ConfigSpec() {

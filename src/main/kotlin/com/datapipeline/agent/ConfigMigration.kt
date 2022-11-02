@@ -5,12 +5,14 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.JsonNodeFactory
 import io.vertx.core.http.HttpMethod.GET
 import io.vertx.core.http.HttpMethod.POST
+import io.vertx.core.http.HttpMethod.PUT
 import io.vertx.core.json.DecodeException
 import io.vertx.core.json.JsonArray
 import com.datapipeline.agent.util.cutHalf
 import com.datapipeline.agent.util.getOracleConf
 import com.datapipeline.agent.util.sendRequest
 import com.datapipeline.agent.util.swapAndWrite
+import kotlin.math.min
 
 class ConfigMigration : AbstractMigration(), Migrate {
 
@@ -51,28 +53,19 @@ class ConfigMigration : AbstractMigration(), Migrate {
                 // 修改新 agent 的 map.yml
                 sendRequest(Config.NEW_AGENT, POST, "/export/tables", JsonArray(list), 60000L, listOf(200, 201))
                 // 获取旧 agent 的数据库配置信息并持久化
-                val oldConfResp = sendRequest(Config.NEW_AGENT, GET, "/config/old?path=${old_conf[OldConfSpec.path]}")
+                val oldConfResp = sendRequest(Config.NEW_AGENT, GET, "/export/config/old?path=${old_conf[OldConfSpec.path]}")
                 val oldConf = oldConfResp.bodyAsJson(ExportConfig::class.java)
-                val oracleNodeConfig = getOracleConf(oldConf.src_login)
-                val asmCut = oldConf.asm_login.cutHalf("@")
-                val asmLogin = asmCut.first.cutHalf("/")
-                val mode = oldConf.asm_mode.uppercase()
-                OragentConfig(
-                    new_conf[NewConfSpec.src_id],
-                    Mode.valueOf(mode),
-                    connectionString = asmCut.second,
-                    asmUser = asmLogin.first,
-                    asmPassword = asmLogin.second,
-                    oracleHome = oldConf.asm_oracle_home,
-                    sid = oldConf.asm_oracle_sid
-                ).also { oracleNodeConfig.oragentConfig = it }
+                val oracleNodeConfig = getOracleNodeConfig(oldConf)
                 val jsonObj = jsonFactory.objectNode().also {
                     it.set<JsonNode>("old_conf", jsonFactory.pojoNode(oldConf))
                     it.set<JsonNode>("node_config", jsonFactory.pojoNode(oracleNodeConfig))
                 }
                 swapAndWrite(RESULT_CONF_PATH, jsonObj.toPrettyString())
                 // 修改新 agent 的 oracle.yml
-                sendRequest(Config.NEW_AGENT, POST, "/config/", JsonNodeFactory.instance.pojoNode(oracleNodeConfig))
+                sendRequest(Config.NEW_AGENT, POST, "/export/config", JsonNodeFactory.instance.pojoNode(oracleNodeConfig))
+                // 修改新 agent 的 param.yml
+                val useString = new_conf[NewConfSpec.migrate_topic_format].equals("string", true)
+                sendRequest(Config.NEW_AGENT, PUT, "/param/legacy_format", JsonNodeFactory.instance.textNode(useString.toString()))
                 onComplete("配置迁移执行完成", mapOf("CONTINUE" to "true"))
             }
         } catch (e: Throwable) {
@@ -80,9 +73,44 @@ class ConfigMigration : AbstractMigration(), Migrate {
         }
     }
 
+    fun getOracleNodeConfig(oldConf: ExportConfig): OracleNodeConfig {
+        val oracleNodeConfig = getOracleConf(oldConf.src_login)
+        val asmCut = oldConf.asm_login.cutHalf("@")
+        val asmConn = asmCut.second
+        val validAsm = asmConn.isNotEmpty()
+        val asmLogin = if (validAsm) asmCut.first.cutHalf("/") else asmCut.first to ""
+        val list = arrayListOf<AsmDiskInfo>()
+        if (validAsm) {
+            if (oldConf.asm_disk.isNullOrEmpty().not() && oldConf.asm_dev.isNullOrEmpty().not()) {
+                val asmDisks = oldConf.asm_disk!!.split(" , ")
+                val asmDevs = oldConf.asm_dev!!.split(" , ")
+                min(asmDisks.size, asmDevs.size).takeIf { it > 0 }?.apply {
+                    for (i in 0 until this) {
+                        list.add(AsmDiskInfo(asmDisks[i], asmDevs[i]))
+                    }
+                }
+            }
+        }
+        val exadata = oldConf.param_exadata == "1"
+        OragentConfig(
+            new_conf[NewConfSpec.src_id],
+            Mode.valueOf(oldConf.asm_mode.uppercase()),
+            new_conf[NewConfSpec.host],
+            new_conf[NewConfSpec.web_port],
+            asmConn,
+            asmLogin.first,
+            asmLogin.second,
+            oldConf.asm_oracle_home ?: "",
+            oldConf.asm_oracle_sid ?: "",
+            list,
+            exadata
+        ).also { oracleNodeConfig.oragentConfig = it }
+        return oracleNodeConfig
+    }
+
     override fun onError(e: Throwable, args: Map<String, Any>?) {
         LOGGER.error("Exception:${e.message}", e)
-        sendRequest(Config.NEW_AGENT, POST, "/config/", JsonNodeFactory.instance.pojoNode(OracleNodeConfig.DEFAULT))
+        sendRequest(Config.NEW_AGENT, POST, "/export/config", JsonNodeFactory.instance.pojoNode(OracleNodeConfig.DEFAULT))
         sendRequest(
             Config.NEW_AGENT,
             POST,

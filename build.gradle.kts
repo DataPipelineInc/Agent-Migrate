@@ -40,6 +40,9 @@ tasks.jar {
 
 tasks.test {
     useJUnitPlatform()
+    environment("NEW_SRCID" to 1)
+    environment("NEW_MIGRATETOPICFORMAT" to "string")
+    environment("NEW_HOST" to "192.168.0.14")
 }
 
 tasks.withType<KotlinCompile> {
