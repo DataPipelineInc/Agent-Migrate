@@ -223,7 +223,8 @@ class DataMigration : AbstractMigration(), Migrate {
             while (notSuspendedTaskIds.isNotEmpty()) {
                 taskIds.forEach {
                     val taskBody = sendRequest(Config.DP, GET, "/v3/data-tasks/${it}")
-                    val taskInfo = mapper.readValue(taskBody.bodyAsString(), DpDataTask::class.java)
+                    val apiResult = mapper.readValue(taskBody.bodyAsString(), ApiResult::class.java)
+                    val taskInfo = mapper.readValue(jsonFactory.pojoNode(apiResult.data).toString(), DpDataTask::class.java)
                     if (taskInfo.state == DpDataTaskState.SUSPEND) {
                         notSuspendedTaskIds.remove(it)
                     }

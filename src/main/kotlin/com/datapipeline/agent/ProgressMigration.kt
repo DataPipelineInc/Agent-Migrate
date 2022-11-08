@@ -22,31 +22,39 @@ class ProgressMigration : AbstractMigration(), Migrate {
             val oldSavepointResp = sendRequest(
                 Config.NEW_AGENT,
                 GET,
-                "/export/old/savepoint/1?path=${old_conf[OldConfSpec.path]}"
+                "/export/legacy/savepoint/1?path=${old_conf[OldConfSpec.path]}"
             )
             // 读取旧 agent 的 translist
             val oldTransResp = sendRequest(
                 Config.NEW_AGENT,
                 GET,
-                "/export/old/translist/1?path=${old_conf[OldConfSpec.path]}"
+                "/export/legacy/translist/1?path=${old_conf[OldConfSpec.path]}"
             )
             val savepoints = arrayListOf<Savepoint>()
             val transArray = oldTransResp.bodyAsJsonArray()
             if (!transArray.isEmpty) {
                 // translist 存在数据（包含未提交事务）
                 // 寻找每个 Thread 所对应的最小 scn
-                val minScnList = mutableMapOf<Int, Long>()
+                var minScn = Long.MAX_VALUE
                 for (i in 0 until transArray.size()) {
                     val trans = mapper.readValue(transArray.getJsonObject(i).toString(), Trans::class.java)
-                    val threadId = trans.thread_id
-                    val minScn = minScnList[threadId]
-                    minScnList[threadId] = if (minScn != null) min(minScn, trans.scn_bgn.scn) else trans.scn_bgn.scn
-                }
-                val minScnJson = jsonFactory.objectNode().also {
-                    minScnList.forEach { (t, u) -> it.put(t.toString(), u) }
+                    minScn = min(minScn, trans.scn_bgn.scn)
                 }
                 // 调用新agent 接口，在数据库查询对应的 Sequence
-                sendRequest(Config.NEW_AGENT, POST, "/tools/seqByScn", minScnJson).bodyAsJsonObject().onEach {
+                val savepointMap = sortedMapOf<Int, Long>()
+                val redoLogInfoList =
+                    sendRequest(Config.NEW_AGENT, GET, "/tools/logs?startScn=$minScn").bodyAsJsonArray()
+                        .takeIf { it.isEmpty.not() }
+                        ?: sendRequest(
+                            Config.NEW_AGENT,
+                            GET,
+                            "/tools/logs?startScn=$minScn&reset=EARLIEST"
+                        ).bodyAsJsonArray()
+                redoLogInfoList.forEach {
+                    val savepoint = mapper.readValue(it.toString(), Savepoint::class.java)
+                    savepointMap.merge(savepoint.thr, savepoint.seq) { oldVal, newVal -> min(oldVal, newVal) }
+                }
+                savepointMap.forEach {
                     savepoints.add(Savepoint(it.key.toInt(), it.value.toString().toLong(), 0, 0, 0))
                 }
             } else {
@@ -59,7 +67,7 @@ class ProgressMigration : AbstractMigration(), Migrate {
             }
             LOGGER.info { "Got Savepoints : $savepoints" }
             // 修改新 agent 的 cfg.loginfo
-            sendRequest(Config.NEW_AGENT, POST, "/export/savepoint/full", JsonArray(savepoints))
+            sendRequest(Config.NEW_AGENT, POST, "/export/savepoint", JsonArray(savepoints))
             onComplete("进度迁移执行完成", null)
         } catch (e: Exception) {
             onError(e)
@@ -68,7 +76,7 @@ class ProgressMigration : AbstractMigration(), Migrate {
 
     override fun onError(e: Throwable, args: Map<String, Any>?) {
         LOGGER.error("Exception:${e.message}", e)
-        sendRequest(Config.NEW_AGENT, POST, "/export/savepoint/full", JsonArray())
+        sendRequest(Config.NEW_AGENT, POST, "/export/savepoint", JsonArray())
         sendRequest(Config.OLD_AGENT, POST, "/fzsstart")
         throw e
     }

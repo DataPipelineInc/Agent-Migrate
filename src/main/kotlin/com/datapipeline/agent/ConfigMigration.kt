@@ -53,7 +53,7 @@ class ConfigMigration : AbstractMigration(), Migrate {
                 // 修改新 agent 的 map.yml
                 sendRequest(Config.NEW_AGENT, POST, "/export/tables", JsonArray(list), 60000L, listOf(200, 201))
                 // 获取旧 agent 的数据库配置信息并持久化
-                val oldConfResp = sendRequest(Config.NEW_AGENT, GET, "/export/config/old?path=${old_conf[OldConfSpec.path]}")
+                val oldConfResp = sendRequest(Config.NEW_AGENT, GET, "/export/config/legacy?path=${old_conf[OldConfSpec.path]}")
                 val oldConf = oldConfResp.bodyAsJson(ExportConfig::class.java)
                 val oracleNodeConfig = getOracleNodeConfig(oldConf)
                 val jsonObj = jsonFactory.objectNode().also {
