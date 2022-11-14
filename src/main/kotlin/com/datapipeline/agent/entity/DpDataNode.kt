@@ -29,6 +29,7 @@ data class DpDataNode(
     @JsonIgnore val summary: JsonObject? = null,
     @JsonIgnore val agentStates: List<JsonNode>? = null,
     @JsonIgnore val casePolicy: String? = null,
+    @JsonIgnore val projectId: Int? = null,
 ) {
     constructor() : this(0, "", "ORACLE", DpDataNodeState.SUSPEND, null, null)
 }

@@ -12,5 +12,6 @@ enum class DpDataTaskState {
     WAITING_CACHE_CLEAR,
     WAITING_START,
     WAITING_RESOURCE,
+    FINISHED,
     ERROR
 }

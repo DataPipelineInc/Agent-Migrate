@@ -2,6 +2,7 @@ package com.datapipeline.agent.util
 
 import com.datapipeline.agent.*
 import io.netty.handler.codec.http.cookie.DefaultCookie
+import io.vertx.core.buffer.Buffer
 import io.vertx.core.http.HttpMethod
 import io.vertx.ext.web.client.HttpResponse
 import io.vertx.ext.web.client.WebClient
@@ -22,17 +23,23 @@ fun sendRequest(
         Config.DP -> session.addHeader("Authorization", dp_conf[DpConfSpec.token])
         else -> {}
     }
-    if (method == HttpMethod.POST) {
-        session.addHeader("Content-Type", "application/json")
-        LOGGER.info { json?.toString() }
-    }
     var response: HttpResponse<*>? = null
     var exception: Throwable? = null
     val request = session.request(method, config.port, config.host, uri)
         .timeout(timeoutMs)
     val future = when (method) {
         HttpMethod.GET -> request.send()
-        HttpMethod.POST, HttpMethod.PUT -> request.sendJson(json)
+        HttpMethod.POST, HttpMethod.PUT -> {
+            LOGGER.info { "$method json: ${json?.toString()}" }
+            if (json == null) {
+                request.send()
+            } else {
+                when (json) {
+                    is String -> request.sendBuffer(Buffer.buffer(json))
+                    else -> request.sendJson(json)
+                }
+            }
+        }
         else -> throw Exception("Method [$method] not allowed.")
     }
     future
@@ -48,7 +55,8 @@ fun sendRequest(
         throw Exception("Failed to get response.")
     } else {
         val resp = response!!
-        LOGGER.info { "Type: [$config], Method: [$method], URI: [$uri], Body Content: [${resp.body()}]" }
+        LOGGER.info { "Type: [$config], Method: [$method], URI: [$uri]" }
+        LOGGER.debug { "URI: [$uri], Body Content: [${resp.body()}]" }
         return resp.takeIf { validStatusCode.contains(it.statusCode()) }
             ?: throw Exception("Invalid status code: [${resp.statusCode()}], URI: [${uri}], Body content: [${resp.body()}]")
     }

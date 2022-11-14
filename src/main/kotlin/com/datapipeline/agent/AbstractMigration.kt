@@ -14,8 +14,20 @@ val VERTX: Vertx = Vertx.vertx()
 abstract class AbstractMigration {
     val mapper = jacksonObjectMapper()
     val jsonFactory: JsonNodeFactory = JsonNodeFactory.instance
+    val srcId = new_conf[NewConfSpec.src_id]
 
     abstract fun migrate()
+    fun check(srcId: Int) {
+        val nodeConfig = getNodeConfig(srcId)
+        val basicConfig = nodeConfig.basicConfig
+        basicConfig?.takeIf { it.oracleAgentConfig != null } ?: throw Exception("节点「${srcId}」不包含旧agent 信息，BasicConfig: $basicConfig")
+    }
+
+    fun getNodeConfig(srcId: Int): DpDataNode {
+        val dataNodeResp = sendRequest(Config.DP, HttpMethod.GET, "/v3/data-nodes/${srcId}")
+        val apiResult = mapper.readValue(dataNodeResp.bodyAsString(), ApiResult::class.java)
+        return mapper.readValue(jsonFactory.pojoNode(apiResult.data).toString(), DpDataNode::class.java)
+    }
 
     /**
      * 查找节点关联的运行中任务

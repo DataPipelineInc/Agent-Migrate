@@ -10,7 +10,7 @@ data class DpDataNodeBasicConfig(
     val database: String,
     val schema: String?,
     val username: String,
-    val oracleAgentConfig: DpOracleAgentConfig,
+    val oracleAgentConfig: DpOracleAgentConfig? = null,
     var oragentConfig: OragentConfig,
     val dpToken: String? = null,
     var params: ArrayList<HashMap<Any, Any>>? = null,

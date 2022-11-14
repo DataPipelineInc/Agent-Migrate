@@ -10,7 +10,7 @@ data class DpDataTask(
     val state: DpDataTaskState?,
     val srcNodes: List<JsonNode>?,
     val sinkNodes: List<JsonNode>?,
-    val basicConfig: JsonObject? = null,
+    val basicConfig: Map<String, Any>? = null,
     @JsonIgnore val createdAt: String? = null,
     @JsonIgnore val createdBy: JsonObject? = null,
     @JsonIgnore val updatedAt: String? = null,

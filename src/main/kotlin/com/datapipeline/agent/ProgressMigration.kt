@@ -1,7 +1,6 @@
 package com.datapipeline.agent
 
 import com.datapipeline.agent.entity.Savepoint
-import com.datapipeline.agent.entity.Trans
 import io.vertx.core.http.HttpMethod.GET
 import io.vertx.core.http.HttpMethod.POST
 import io.vertx.core.json.JsonArray
@@ -12,34 +11,27 @@ class ProgressMigration : AbstractMigration(), Migrate {
 
     override fun migrate() {
         try {
+            check(srcId)
             // 停止旧 agent
             val stopResp = sendRequest(Config.OLD_AGENT, POST, "/fzsstop", timeoutMs = 60000L)
-            val stopBody = stopResp.bodyAsString()
-            if (!stopBody.contains("停止成功")) {
-                throw Exception("Failed to stop old agent, Response Content: [$stopBody]")
-            }
             // 读取旧 agent 的 cfg.loginfo
             val oldSavepointResp = sendRequest(
                 Config.NEW_AGENT,
                 GET,
-                "/export/legacy/savepoint/1?path=${old_conf[OldConfSpec.path]}"
+                "/migrate/legacy/1/savepoint?path=${old_conf[OldConfSpec.path]}"
             )
             // 读取旧 agent 的 translist
             val oldTransResp = sendRequest(
                 Config.NEW_AGENT,
                 GET,
-                "/export/legacy/translist/1?path=${old_conf[OldConfSpec.path]}"
+                "/migrate/legacy/1/translist/scn?path=${old_conf[OldConfSpec.path]}"
             )
             val savepoints = arrayListOf<Savepoint>()
-            val transArray = oldTransResp.bodyAsJsonArray()
-            if (!transArray.isEmpty) {
+            val scnArray = oldTransResp.bodyAsJsonArray()
+            if (!scnArray.isEmpty) {
                 // translist 存在数据（包含未提交事务）
-                // 寻找每个 Thread 所对应的最小 scn
-                var minScn = Long.MAX_VALUE
-                for (i in 0 until transArray.size()) {
-                    val trans = mapper.readValue(transArray.getJsonObject(i).toString(), Trans::class.java)
-                    minScn = min(minScn, trans.scn_bgn.scn)
-                }
+                // 寻找最小 scn
+                val minScn = scnArray.minOf { it.toString().toLong() }
                 // 调用新agent 接口，在数据库查询对应的 Sequence
                 val savepointMap = sortedMapOf<Int, Long>()
                 val redoLogInfoList =

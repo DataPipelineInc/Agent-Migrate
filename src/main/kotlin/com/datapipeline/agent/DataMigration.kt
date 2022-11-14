@@ -23,7 +23,6 @@ import java.util.stream.Collectors
 
 class DataMigration : AbstractMigration(), Migrate {
 
-    private val srcId = new_conf[NewConfSpec.src_id]
     private val useString = new_conf[NewConfSpec.migrate_topic_format].equals("string", true)
     private val legacyFormatParam = HashMap<Any, Any>().also {
         it["key"] = "LEGACY_FORMAT"
@@ -33,6 +32,7 @@ class DataMigration : AbstractMigration(), Migrate {
     override fun migrate() {
         val errorArgs = mutableMapOf<String, Any>()
         try {
+            check(srcId)
             val confResult = com.uchuhimo.konf.Config {
                 addSpec(SrcSpec)
                 addSpec(AsmSpec)
@@ -49,29 +49,39 @@ class DataMigration : AbstractMigration(), Migrate {
                 properties["auto.offset.reset"] = "earliest"
                 // 新建消费者消费，查找 nine.offset
                 val consumer = KafkaConsumer<String, String>(properties)
-                val offsetTopic = TopicPartition("offset_connect_source_dp", 1)
-                consumer.assign(listOf(offsetTopic))
-                consumer.seekToBeginning(listOf(offsetTopic))
+                val offsetTopic = consumer.partitionsFor("offset_connect_source_dp").map {
+                    TopicPartition(it.topic(), it.partition())
+                }.toMutableList()
+                consumer.assign(offsetTopic)
+                consumer.seekToBeginning(offsetTopic)
 
                 val nineOffsetMap = hashMapOf<String, Long>()
                 val nineOffsetStart = System.currentTimeMillis()
                 while (true) {
                     val poll = consumer.poll(Duration.ZERO)
-                    val records = poll.records(offsetTopic)
-                    records.forEach {
-                        // Key formats like: ["dp-oracle-connector-dptask_<taskId>_1",{"table":"<taskId>.<database>.<schema>.<table>"}]
-                        val key = JsonArray(it.key())
-                        val table = key.getJsonObject(1).getString("table")
-                        val tableInfo = table.split(".", limit = 4)
-                        val taskId = tableInfo[0].toInt()
-                        // Value format: JSON
-                        val offsetValue = mapper.readValue(it.value(), OffsetValue::class.java)
-                        if (taskIds.contains(taskId)) {
-                            nineOffsetMap[table] = offsetValue.nine_offset
+                    var count = 0
+                    offsetTopic.forEach { topicPartition ->
+                        val records = poll.records(topicPartition)
+                        records.forEach {
+                            // Key formats like: ["dp-oracle-connector-dptask_<taskId>_1",{"table":"<taskId>.<database>.<schema>.<table>"}]
+                            val key = JsonArray(it.key())
+                            val connectorInfo = key.getString(0)
+                            if (connectorInfo.startsWith("dp-oracle-connector-")) {
+                                val table = key.getJsonObject(1).getString("table")
+                                val tableInfo = table.split(".", limit = 4)
+                                val taskId = tableInfo[0].toInt()
+                                // Value format: JSON
+                                val offsetValue = mapper.readTree(it.value())
+                                //val offsetValue = mapper.readValue(it.value(), OffsetValue::class.java)
+                                if (taskIds.contains(taskId)) {
+                                    nineOffsetMap[table] = offsetValue.get("nine.offset").longValue()
+                                }
+                            }
                         }
+                        count += records.count()
                     }
 
-                    if (records.isNotEmpty()) {
+                    if (count != 0) {
                         break
                     } else {
                         if (System.currentTimeMillis() - nineOffsetStart > 10000L) {
@@ -229,17 +239,17 @@ class DataMigration : AbstractMigration(), Migrate {
                         notSuspendedTaskIds.remove(it)
                     }
                 }
-                if (System.currentTimeMillis() - taskSuspendStart > 60000L) {
+                val ids = notSuspendedTaskIds.joinToString()
+                LOGGER.info { "等待任务 [$ids] 暂停" }
+                if (System.currentTimeMillis() - taskSuspendStart > 600000L) {
                     taskIds.forEach {
                         sendRequest(Config.DP, POST, "/v3/data-tasks/$it/restart")
                     }
-                    throw Exception("等待任务暂停超时, 任务ID列表: [${notSuspendedTaskIds.joinToString()}]")
+                    throw Exception("等待任务暂停超时, 任务ID列表: [$ids]")
                 }
             }
             // 修改节点配置
-            val dataNodeResp = sendRequest(Config.DP, GET, "/v3/data-nodes/${srcId}")
-            val apiResult = mapper.readValue(dataNodeResp.bodyAsString(), ApiResult::class.java)
-            val nodeConfig = mapper.readValue(jsonFactory.pojoNode(apiResult.data).toString(), DpDataNode::class.java)
+            val nodeConfig = getNodeConfig(srcId)
             val basicConfig = nodeConfig.basicConfig!!
             sendRequest(Config.DP, PUT, "/v3/data-nodes/${srcId}", getUpdateNodeJson(basicConfig, confResult))
             // 节点可用性校验
@@ -325,7 +335,11 @@ class DataMigration : AbstractMigration(), Migrate {
         if (params == null) {
             basicConfig.params = arrayListOf(legacyFormatParam)
         } else {
-            params.add(legacyFormatParam)
+            params.firstOrNull { it["key"] == "LEGACY_FORMAT" }?.let {
+                it["value"] = useString.toString()
+            } ?: apply {
+                params.add(legacyFormatParam)
+            }
         }
         return jsonFactory.objectNode().also {
             it.put("type", "ORACLE")

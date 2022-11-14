@@ -18,6 +18,7 @@ class ConfigMigration : AbstractMigration(), Migrate {
 
     override fun migrate() {
         try {
+            check(srcId)
             // 获取旧 agent 同步对象
             val mapResp = sendRequest(Config.OLD_AGENT, GET, "/getusermap")
             val mapArray = mapResp.bodyAsJsonArray()
@@ -53,7 +54,7 @@ class ConfigMigration : AbstractMigration(), Migrate {
                 // 修改新 agent 的 map.yml
                 sendRequest(Config.NEW_AGENT, POST, "/export/tables", JsonArray(list), 60000L, listOf(200, 201))
                 // 获取旧 agent 的数据库配置信息并持久化
-                val oldConfResp = sendRequest(Config.NEW_AGENT, GET, "/export/config/legacy?path=${old_conf[OldConfSpec.path]}")
+                val oldConfResp = sendRequest(Config.NEW_AGENT, GET, "/migrate/legacy/config?path=${old_conf[OldConfSpec.path]}")
                 val oldConf = oldConfResp.bodyAsJson(ExportConfig::class.java)
                 val oracleNodeConfig = getOracleNodeConfig(oldConf)
                 val jsonObj = jsonFactory.objectNode().also {
@@ -65,7 +66,7 @@ class ConfigMigration : AbstractMigration(), Migrate {
                 sendRequest(Config.NEW_AGENT, POST, "/export/config", JsonNodeFactory.instance.pojoNode(oracleNodeConfig))
                 // 修改新 agent 的 param.yml
                 val useString = new_conf[NewConfSpec.migrate_topic_format].equals("string", true)
-                sendRequest(Config.NEW_AGENT, PUT, "/param/legacy_format", JsonNodeFactory.instance.textNode(useString.toString()))
+                sendRequest(Config.NEW_AGENT, PUT, "/param/legacy_format", useString.toString())
                 onComplete("配置迁移执行完成", mapOf("CONTINUE" to "true"))
             }
         } catch (e: Throwable) {
