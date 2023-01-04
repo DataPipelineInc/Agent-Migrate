@@ -84,7 +84,7 @@ class DataMigration : AbstractMigration(), Migrate {
                     if (count != 0) {
                         break
                     } else {
-                        if (System.currentTimeMillis() - nineOffsetStart > 10000L) {
+                        if (System.currentTimeMillis() - nineOffsetStart > 60000L) {
                             throw Exception("消费 offset_connect_source_dp 超时")
                         }
                     }
@@ -128,7 +128,7 @@ class DataMigration : AbstractMigration(), Migrate {
                         }
                     }
                     Thread.sleep(1000L)
-                    if (System.currentTimeMillis() - offsetEqualStart > 10000L) {
+                    if (System.currentTimeMillis() - offsetEqualStart > 600000L) {
                         jsonObj.set<JsonNode>("endOffsets", ObjectNode(jsonFactory, endOffsetMap))
                         swapAndWrite(RESULT_DATA_PATH, jsonObj.toPrettyString())
                         val topicNames =
