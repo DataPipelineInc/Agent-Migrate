@@ -23,6 +23,8 @@ data class DpDataNode(
     @JsonIgnore val participants: JsonObject? = null,
     @JsonIgnore val connectState: String? = null,
     @JsonIgnore val versionInfo: JsonObject? = null,
+    @JsonIgnore val version: String? = null,
+    @JsonIgnore val versionLabel: String? = null,
     @JsonIgnore val limitConfig: JsonObject? = null,
     @JsonIgnore val policyConfig: JsonObject? = null,
     @JsonIgnore val refType: String? = null,
