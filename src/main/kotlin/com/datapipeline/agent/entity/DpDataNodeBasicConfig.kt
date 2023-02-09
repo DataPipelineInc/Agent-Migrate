@@ -11,7 +11,7 @@ data class DpDataNodeBasicConfig(
     val schema: String?,
     val username: String,
     val oracleAgentConfig: DpOracleAgentConfig? = null,
-    var oragentConfig: OragentConfig,
+    var oragentConfig: OragentConfig? = null,
     val dpToken: String? = null,
     var params: ArrayList<HashMap<Any, Any>>? = null,
     @JsonIgnore val password: String? = null,
@@ -20,5 +20,5 @@ data class DpDataNodeBasicConfig(
     @JsonIgnore val securityConfig: JsonObject? = null,
     @JsonIgnore val customParams: List<JsonObject>? = null
 ) {
-    constructor() : this("", "", 0, "", null, "",  DpOracleAgentConfig(), OragentConfig.DEFAULT)
+    constructor() : this("", "", 0, "", null, "",  DpOracleAgentConfig())
 }

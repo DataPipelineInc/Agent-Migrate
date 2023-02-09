@@ -12,6 +12,8 @@ data class OragentConfig(
     val sid: String? = null,
     val asmDisks: List<AsmDiskInfo>? = null,
     val bigEndian: Boolean = false,
+    val useDpKafka: Boolean? = null,
+    val kafkaConfig: KafkaConfig? = null,
 ) {
     companion object {
         val DEFAULT = OragentConfig(

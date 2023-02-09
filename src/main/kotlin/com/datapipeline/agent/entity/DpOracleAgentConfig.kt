@@ -7,6 +7,8 @@ data class DpOracleAgentConfig(
     val agentSinkPort: String,
     val kafkaBrokers: String? = null,
     val kafkaTopicPrefix: String? = null,
+    val useDpKafka: Boolean? = null,
+    val kafkaConfig: KafkaConfig? = null,
 ) {
     constructor() : this("", "", "", "")
 }

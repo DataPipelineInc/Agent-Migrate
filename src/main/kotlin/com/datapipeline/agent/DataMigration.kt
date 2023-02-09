@@ -253,7 +253,7 @@ class DataMigration : AbstractMigration(), Migrate {
             val basicConfig = nodeConfig.basicConfig!!
             sendRequest(Config.DP, PUT, "/v3/data-nodes/${srcId}", getUpdateNodeJson(basicConfig, confResult))
             // 节点可用性校验
-            val initResp = sendRequest(Config.DP, POST, "/v3/data-nodes/${srcId}/init?modes=ORAGENT")
+            val initResp = sendRequest(Config.DP, POST, "/v3/data-nodes/${srcId}/init?modes=ORAGENT", timeoutMs = 60000L)
             val initBody = mapper.readValue(initResp.bodyAsString(), ApiResult::class.java)
             val supportInfo =
                 mapper.readValue(jsonFactory.pojoNode(initBody.data).toString(), DpDataNodeSupportInfo::class.java)
