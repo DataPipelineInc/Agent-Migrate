@@ -59,7 +59,7 @@ dp:
 作用：启动脚本<br>
 
 ### 2、使用前确认
-新 agent 的迁移前确认：
+#### 新 agent 的迁移前确认：
 
 1、执行命令查看新 agent 的健康状态（ host 和 port 即 config.yml 文件中的 new.host 和 new.web_port 属性）
 
@@ -81,8 +81,7 @@ $ curl <host>:<port>/export/health
 ``` sh
 $ curl -XPOST <host>:<port>/export/stop
 ```
-<br>
-DP 的迁移前确认：
+#### DP 的迁移前确认：
 
 根据 config.yml 文件中的 new.src_id 值去查找 DP 中对应的节点信息，确认该节点包含了旧 agent 的配置信息
 ### 3、如何填写配置中的 Token 信息
@@ -140,13 +139,19 @@ node_config ：新 agent 实例存储的数据库配置信息<br>
 作用：完成节点配置信息的更新及链路读取模式的修改
 
 影响：
+
 如果在 conf/config.yml 中显式设置了 migrate_topic_format: string ，则序列化方式为 **string** ，否则为 **avro**。<br>
+
 此时旧 agent 实例已经被停止<br>
+
 如果序列化方式为 **avro** ， agent topic 中的数据会等待全部被消费掉，然后全部清空。<br>
+
 如果序列化方式为 **string** ，则不会清空 agent topic 数据。<br>
+
 之后不论何种序列化方式，都会执行暂停运行中任务，修改链路对应的读取模式，启动新 agent 实例，重启任务的操作。<br>
 
 异常处理：如出现问题，回滚操作会重启旧 agent 实例。可重新执行 ./start.sh<br>
+
 如果序列化方式为 **avro** 且 agent topic 数据已经被清空，也可以手动修改对应链路的读取模式，重启相应任务。
 
 备注：持久化信息存储在 result 文件夹中的 data.json 文件中
