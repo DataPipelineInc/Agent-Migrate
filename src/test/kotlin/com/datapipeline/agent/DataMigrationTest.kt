@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test
 import kotlin.test.assertIs
 
 internal class DataMigrationTest {
+    private val kafkaConfigClassName = "com.datapipeline.internal.bean.node.KafkaNodeConfig"
+
     private val nodeInfoText = """
         {
             "data": {
@@ -37,7 +39,14 @@ internal class DataMigrationTest {
                         "agentSourceHost": "192.168.0.14",
                         "agentSourcePort": "8303",
                         "agentSinkHost": "192.168.0.31",
-                        "agentSinkPort": "18081"
+                        "agentSinkPort": "18081",
+                        "useDpKafka": true,
+                        "kafkaConfig": {
+                            "@class": "com.datapipeline.internal.bean.node.KafkaNodeConfig",
+                            "securityConfig": {
+                                "authType": "SIMPLE"
+                            }
+                        }    
                     },
                     "oragentConfig": {
                         "mode": "RAW"
@@ -74,7 +83,18 @@ internal class DataMigrationTest {
                         "agentSourceHost": "192.168.0.14",
                         "agentSourcePort": "8303",
                         "agentSinkHost": "192.168.0.31",
-                        "agentSinkPort": "18081"
+                        "agentSinkPort": "18081",
+                        "useDpKafka": false,
+                        "kafkaConfig": {
+                            "@class": "com.datapipeline.internal.bean.node.KafkaNodeConfig",
+                            "securityConfig": {
+                                "authType": "SCRAM_SHA_256",
+                                "scramConfig": {
+                                    "userName": "user",
+                                    "password": "pwd"
+                                }
+                            }
+                        } 
                     },
                     "oragentConfig": {
                         "mode": "RAW"
@@ -101,6 +121,7 @@ internal class DataMigrationTest {
         val apiResult = mapper.readValue(nodeInfoText, ApiResult::class.java)
         val nodeConfig = mapper.readValue(jsonFactory.pojoNode(apiResult.data).toString(), DpDataNode::class.java)
         val basicConfig = nodeConfig.basicConfig
+        val kafkaConfig = KafkaConfig(kafkaConfigClassName, securityConfig = SecurityConfig(SecurityAuthType.SIMPLE))
         val expectedBasicConfig = DpDataNodeBasicConfig(
             "com.datapipeline.internal.bean.node.OracleNodeConfig",
             "192.168.0.14",
@@ -108,7 +129,7 @@ internal class DataMigrationTest {
             "orcl",
             null,
             "DP_TEST",
-            DpOracleAgentConfig("192.168.0.14", "8303", "192.168.0.31", "18081"),
+            DpOracleAgentConfig("192.168.0.14", "8303", "192.168.0.31", "18081", useDpKafka = true, kafkaConfig = kafkaConfig),
             OragentConfig(mode = Mode.RAW),
             null,
             arrayListOf(hashMapOf("key" to "PARAM1", "value" to "true"))
@@ -117,6 +138,7 @@ internal class DataMigrationTest {
 
         val apiResultNew = mapper.readValue(nodeInfoNoParamTest, ApiResult::class.java)
         val nodeConfigNoParam = mapper.readValue(jsonFactory.pojoNode(apiResultNew.data).toString(), DpDataNode::class.java)
+        val kafkaScramConfig = KafkaConfig(kafkaConfigClassName, securityConfig = SecurityConfig(SecurityAuthType.SCRAM_SHA_256, scramConfig = ScramConfig("user", "pwd")))
         val basicConfigNoParam = nodeConfigNoParam.basicConfig
         val expectedBasicConfigNoParam = DpDataNodeBasicConfig(
             "com.datapipeline.internal.bean.node.OracleNodeConfig",
@@ -125,7 +147,7 @@ internal class DataMigrationTest {
             "orcl",
             null,
             "PY_AUTO",
-            DpOracleAgentConfig("192.168.0.14", "8303", "192.168.0.31", "18081"),
+            DpOracleAgentConfig("192.168.0.14", "8303", "192.168.0.31", "18081", useDpKafka = false, kafkaConfig = kafkaScramConfig),
             OragentConfig(mode = Mode.RAW),
             null,
             null
@@ -145,5 +167,8 @@ internal class DataMigrationTest {
         val newBasicConfigNoParam = basicConfigNoParamNode.pojo
         assertIs<DpDataNodeBasicConfig>(newBasicConfigNoParam)
         assertEquals(newBasicConfigNoParam.params, arrayListOf(hashMapOf("key" to "LEGACY_FORMAT", "value" to "true")))
+        val oragentConfig = newBasicConfigNoParam.oragentConfig!!
+        assertEquals(oragentConfig.useDpKafka, false)
+        assertEquals(oragentConfig.kafkaConfig, kafkaScramConfig)
     }
 }

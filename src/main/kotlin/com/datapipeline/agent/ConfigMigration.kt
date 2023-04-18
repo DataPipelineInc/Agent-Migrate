@@ -52,7 +52,7 @@ class ConfigMigration : AbstractMigration(), Migrate {
                 onComplete("未检索到符合条件的表", mapOf("CONTINUE" to "false"))
             } else {
                 // 修改新 agent 的 map.yml
-                sendRequest(Config.NEW_AGENT, POST, "/export/tables", JsonArray(list), 60000L, listOf(200, 201))
+                sendRequest(Config.NEW_AGENT, POST, "/export/tables", JsonArray(list), validStatusCode = listOf(200, 201))
                 // 获取旧 agent 的数据库配置信息并持久化
                 val oldConfResp = sendRequest(Config.NEW_AGENT, GET, "/migrate/legacy/config?path=${old_conf[OldConfSpec.path]}")
                 val oldConf = oldConfResp.bodyAsJson(ExportConfig::class.java)
