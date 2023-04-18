@@ -52,6 +52,7 @@ class DataMigration : AbstractMigration(), Migrate {
                 val offsetTopic = consumer.partitionsFor("offset_connect_source_dp").map {
                     TopicPartition(it.topic(), it.partition())
                 }.toMutableList()
+                val endOffsetList = consumer.endOffsets(offsetTopic)
                 consumer.assign(offsetTopic)
                 consumer.seekToBeginning(offsetTopic)
 
@@ -59,7 +60,7 @@ class DataMigration : AbstractMigration(), Migrate {
                 val nineOffsetStart = System.currentTimeMillis()
                 while (true) {
                     val poll = consumer.poll(Duration.ZERO)
-                    var count = 0
+                    val unfinishedPartNumList = mutableListOf<Int>()
                     offsetTopic.forEach { topicPartition ->
                         val records = poll.records(topicPartition)
                         records.forEach {
@@ -78,14 +79,18 @@ class DataMigration : AbstractMigration(), Migrate {
                                 }
                             }
                         }
-                        count += records.count()
+                        val part = topicPartition.partition()
+                        val endOffset = endOffsetList[topicPartition] ?: throw Exception("Topic:[${topicPartition.topic()}]的分区[$part]无 end offset.")
+                        val position = consumer.position(topicPartition)
+                        if (position < endOffset) {
+                            unfinishedPartNumList.add(part)
+                        }
                     }
-
-                    if (count != 0) {
+                    if (unfinishedPartNumList.isEmpty()) {
                         break
                     } else {
                         if (System.currentTimeMillis() - nineOffsetStart > 60000L) {
-                            throw Exception("消费 offset_connect_source_dp 超时")
+                            throw Exception("消费 offset_connect_source_dp 超时，分区[${unfinishedPartNumList.joinToString()}] 未完成消费.")
                         }
                     }
                 }
@@ -253,7 +258,7 @@ class DataMigration : AbstractMigration(), Migrate {
             val basicConfig = nodeConfig.basicConfig!!
             sendRequest(Config.DP, PUT, "/v3/data-nodes/${srcId}", getUpdateNodeJson(basicConfig, confResult))
             // 节点可用性校验
-            val initResp = sendRequest(Config.DP, POST, "/v3/data-nodes/${srcId}/init?modes=ORAGENT", timeoutMs = 60000L)
+            val initResp = sendRequest(Config.DP, POST, "/v3/data-nodes/${srcId}/init?modes=ORAGENT")
             val initBody = mapper.readValue(initResp.bodyAsString(), ApiResult::class.java)
             val supportInfo =
                 mapper.readValue(jsonFactory.pojoNode(initBody.data).toString(), DpDataNodeSupportInfo::class.java)
@@ -318,6 +323,8 @@ class DataMigration : AbstractMigration(), Migrate {
     }
 
     fun getUpdateNodeJson(basicConfig: DpDataNodeBasicConfig, confResult: com.uchuhimo.konf.Config): ObjectNode {
+        val useDpKafka = basicConfig.oracleAgentConfig?.useDpKafka ?: true
+        val kafkaConfig = basicConfig.oracleAgentConfig?.kafkaConfig ?: KafkaConfig()
         basicConfig.oragentConfig = OragentConfig(
             srcId,
             Mode.valueOf(confResult[AsmSpec.mode]),
@@ -329,7 +336,9 @@ class DataMigration : AbstractMigration(), Migrate {
             confResult[AsmSpec.oracleHome],
             confResult[AsmSpec.sid],
             confResult[AsmSpec.asmDisks],
-            confResult[AsmSpec.bigEndian]
+            confResult[AsmSpec.bigEndian],
+            useDpKafka,
+            kafkaConfig
         )
         val params = basicConfig.params
         if (params == null) {

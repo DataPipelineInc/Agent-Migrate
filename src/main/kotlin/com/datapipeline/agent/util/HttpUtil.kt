@@ -13,7 +13,7 @@ fun sendRequest(
     method: HttpMethod,
     uri: String,
     json: Any? = null,
-    timeoutMs: Long = 10000L,
+    timeoutMs: Long = 60000L,
     validStatusCode: List<Int> = arrayListOf(200)
 ): HttpResponse<*> {
     val client = WebClient.create(VERTX)

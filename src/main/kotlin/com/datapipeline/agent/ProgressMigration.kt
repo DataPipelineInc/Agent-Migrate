@@ -13,7 +13,7 @@ class ProgressMigration : AbstractMigration(), Migrate {
         try {
             check(srcId)
             // 停止旧 agent
-            val stopResp = sendRequest(Config.OLD_AGENT, POST, "/fzsstop", timeoutMs = 60000L)
+            val stopResp = sendRequest(Config.OLD_AGENT, POST, "/fzsstop")
             // 读取旧 agent 的 cfg.loginfo
             val oldSavepointResp = sendRequest(
                 Config.NEW_AGENT,

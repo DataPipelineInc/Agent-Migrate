@@ -116,9 +116,9 @@ $ curl -XPOST <host>:<port>/export/stop
 
 作用：迁移同步对象信息和数据库信息
 
-影响：回滚操作会将新 agent 实例的 map.yml 和 oracle.yml 恢复至默认值，不影响旧 agent 和 DP 的运行<br>
+回滚操作：迁移程序自动将新 agent 实例的 map.yml 和 oracle.yml 恢复至默认值<br>
 
-异常处理：无需特别处理
+异常处理：不影响旧 agent 和 DP 的运行，无需手动处理
 
 备注：持久化信息存储在 result 文件夹中的 config.json 文件中
 
