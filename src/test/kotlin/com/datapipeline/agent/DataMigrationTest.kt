@@ -107,16 +107,28 @@ internal class DataMigrationTest {
         }
     """.trimIndent()
 
+    private val oragentConfig = OragentConfig(
+        1,
+        Mode.RAW,
+        "192.168.0.14",
+        8303
+    )
+
+    private val oracleNodeConfig = OracleNodeConfig(
+        "192.168.0.14",
+        1521,
+        "orcl",
+        "DP_TEST",
+        "123456",
+        null,
+        oragentConfig
+    )
+
     @Test
     fun test() {
         val dataMigration = DataMigration()
         val mapper = dataMigration.mapper
         val jsonFactory = dataMigration.jsonFactory
-        val confResult = com.uchuhimo.konf.Config {
-            addSpec(SrcSpec)
-            addSpec(AsmSpec)
-        }.from.json.file(RESULT_CONF_PATH, true)
-            .from.env()
 
         val apiResult = mapper.readValue(nodeInfoText, ApiResult::class.java)
         val nodeConfig = mapper.readValue(jsonFactory.pojoNode(apiResult.data).toString(), DpDataNode::class.java)
@@ -154,14 +166,14 @@ internal class DataMigrationTest {
         )
         assertEquals(basicConfigNoParam, expectedBasicConfigNoParam)
 
-        val updateNodeJson = dataMigration.getUpdateNodeJson(basicConfig!!, confResult)
+        val updateNodeJson = dataMigration.getUpdateNodeJson(basicConfig!!, oracleNodeConfig)
         val basicConfigNode = updateNodeJson["basicConfig"]
         assertIs<POJONode>(basicConfigNode)
         val newBasicConfig = basicConfigNode.pojo
         assertIs<DpDataNodeBasicConfig>(newBasicConfig)
         assertEquals(newBasicConfig.params, arrayListOf(hashMapOf("key" to "PARAM1", "value" to "true"), hashMapOf("key" to "LEGACY_FORMAT", "value" to "true")))
 
-        val updateNodeJsonNoParam = dataMigration.getUpdateNodeJson(basicConfigNoParam!!, confResult)
+        val updateNodeJsonNoParam = dataMigration.getUpdateNodeJson(basicConfigNoParam!!, oracleNodeConfig)
         val basicConfigNoParamNode = updateNodeJsonNoParam["basicConfig"]
         assertIs<POJONode>(basicConfigNoParamNode)
         val newBasicConfigNoParam = basicConfigNoParamNode.pojo

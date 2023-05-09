@@ -33,11 +33,7 @@ class DataMigration : AbstractMigration(), Migrate {
         val errorArgs = mutableMapOf<String, Any>()
         try {
             check(srcId)
-            val confResult = com.uchuhimo.konf.Config {
-                addSpec(SrcSpec)
-                addSpec(AsmSpec)
-            }.from.json.file(RESULT_CONF_PATH, true)
-                .from.env()
+            checkNotNull(confResult)
             val taskIds = getTaskIds(srcId)
 
             if (!useString) {
@@ -256,7 +252,7 @@ class DataMigration : AbstractMigration(), Migrate {
             // 修改节点配置
             val nodeConfig = getNodeConfig(srcId)
             val basicConfig = nodeConfig.basicConfig!!
-            sendRequest(Config.DP, PUT, "/v3/data-nodes/${srcId}", getUpdateNodeJson(basicConfig, confResult))
+            sendRequest(Config.DP, PUT, "/v3/data-nodes/${srcId}", getUpdateNodeJson(basicConfig, confResult!!))
             // 节点可用性校验
             val initResp = sendRequest(Config.DP, POST, "/v3/data-nodes/${srcId}/init?modes=ORAGENT")
             val initBody = mapper.readValue(initResp.bodyAsString(), ApiResult::class.java)
@@ -322,21 +318,22 @@ class DataMigration : AbstractMigration(), Migrate {
         return
     }
 
-    fun getUpdateNodeJson(basicConfig: DpDataNodeBasicConfig, confResult: com.uchuhimo.konf.Config): ObjectNode {
+    fun getUpdateNodeJson(basicConfig: DpDataNodeBasicConfig, confResult: OracleNodeConfig): ObjectNode {
         val useDpKafka = basicConfig.oracleAgentConfig?.useDpKafka ?: true
         val kafkaConfig = basicConfig.oracleAgentConfig?.kafkaConfig ?: KafkaConfig()
+        val oragentConfig = confResult.oragentConfig ?: throw Exception("Required oragent config")
         basicConfig.oragentConfig = OragentConfig(
             srcId,
-            Mode.valueOf(confResult[AsmSpec.mode]),
+            oragentConfig.mode,
             new_conf[NewConfSpec.host],
             new_conf[NewConfSpec.web_port],
-            confResult[AsmSpec.connectionString],
-            confResult[AsmSpec.asmUser],
-            confResult[AsmSpec.asmPassword],
-            confResult[AsmSpec.oracleHome],
-            confResult[AsmSpec.sid],
-            confResult[AsmSpec.asmDisks],
-            confResult[AsmSpec.bigEndian],
+            oragentConfig.connectionString,
+            oragentConfig.asmUser,
+            oragentConfig.asmPassword,
+            oragentConfig.oracleHome,
+            oragentConfig.sid,
+            oragentConfig.asmDisks,
+            oragentConfig.bigEndian,
             useDpKafka,
             kafkaConfig
         )

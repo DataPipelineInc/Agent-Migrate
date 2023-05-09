@@ -6,6 +6,9 @@ DIR_NAME="agent-migrate"
 ROOT_DIR=$(pwd)/$DIR_NAME
 CONF_DIR=$ROOT_DIR/conf
 
+JAR_NAME="agent-migrate-${VERSION}.jar"
+sed -i '' 's/agent-migrate.*.jar/'"${JAR_NAME}"'/g' "$(pwd)/start.sh"
+
 help() {
 cat << EOF
   Usage: -[j]
@@ -43,6 +46,7 @@ else
   if [ ! -e "$ROOT_DIR" ]; then
     mkdir "$ROOT_DIR"
   fi
+  rm -f "$ROOT_DIR"/*.jar
   cp build/libs/agent-migrate-"${VERSION}".jar "$DIR_NAME"
   cp "$(pwd)/start.sh" "$DIR_NAME"
   if [ ! -e "$CONF_DIR" ]; then

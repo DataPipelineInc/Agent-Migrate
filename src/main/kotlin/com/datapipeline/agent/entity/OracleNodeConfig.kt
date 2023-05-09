@@ -12,4 +12,8 @@ data class OracleNodeConfig(
     companion object {
         val DEFAULT = OracleNodeConfig("192.168.0.14", 1521, "orcl", "DP_TEST", "123456", null, OragentConfig.DEFAULT)
     }
+
+    fun irregularFormat(): Boolean {
+        return host.isNullOrBlank() || port == null || database.isNullOrBlank() || username.isNullOrBlank() || password.isNullOrBlank()
+    }
 }

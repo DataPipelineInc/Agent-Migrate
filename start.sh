@@ -43,6 +43,6 @@ EOF
 esac
 done
 
-cmd="java -cp agent-migrate-1.0-SNAPSHOT.jar $DEBUG_OPTS $TGT $ARG"
+cmd="java -cp agent-migrate-1.0.2.jar $DEBUG_OPTS $TGT $ARG"
 eval "$cmd"
 

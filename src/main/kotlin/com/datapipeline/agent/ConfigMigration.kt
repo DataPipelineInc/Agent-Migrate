@@ -12,6 +12,7 @@ import com.datapipeline.agent.util.cutHalf
 import com.datapipeline.agent.util.getOracleConf
 import com.datapipeline.agent.util.sendRequest
 import com.datapipeline.agent.util.swapAndWrite
+import java.io.File
 import kotlin.math.min
 
 class ConfigMigration : AbstractMigration(), Migrate {
@@ -56,12 +57,22 @@ class ConfigMigration : AbstractMigration(), Migrate {
                 // 获取旧 agent 的数据库配置信息并持久化
                 val oldConfResp = sendRequest(Config.NEW_AGENT, GET, "/migrate/legacy/config?path=${old_conf[OldConfSpec.path]}")
                 val oldConf = oldConfResp.bodyAsJson(ExportConfig::class.java)
-                val oracleNodeConfig = getOracleNodeConfig(oldConf)
-                val jsonObj = jsonFactory.objectNode().also {
-                    it.set<JsonNode>("old_conf", jsonFactory.pojoNode(oldConf))
-                    it.set<JsonNode>("node_config", jsonFactory.pojoNode(oracleNodeConfig))
+                val file = File(RESULT_CONF_PATH)
+                val oracleNodeConfig = if (file.exists()) {
+                    conf_result[nodeConfig]
+                } else {
+                    val nodeConfig = getOracleNodeConfig(oldConf)
+                    val jsonObj = jsonFactory.objectNode().also {
+                        it.set<JsonNode>("oldConf", jsonFactory.pojoNode(oldConf))
+                        it.set<JsonNode>("nodeConfig", jsonFactory.pojoNode(nodeConfig))
+                    }
+                    swapAndWrite(RESULT_CONF_PATH, jsonObj.toPrettyString())
+                    nodeConfig
                 }
-                swapAndWrite(RESULT_CONF_PATH, jsonObj.toPrettyString())
+                if (oracleNodeConfig.irregularFormat()) {
+                    throw Exception("Irregular login string format. Please modify $RESULT_CONF_PATH and restart.")
+                }
+                confResult = oracleNodeConfig
                 // 修改新 agent 的 oracle.yml
                 sendRequest(Config.NEW_AGENT, POST, "/export/config", JsonNodeFactory.instance.pojoNode(oracleNodeConfig))
                 // 修改新 agent 的 param.yml

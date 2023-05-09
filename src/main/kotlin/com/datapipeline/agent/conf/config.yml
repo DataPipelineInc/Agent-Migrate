@@ -13,4 +13,5 @@ new:
 dp:
   host: 81.70.62.93
   web_port: 5000
+  kafka_bootstrap_servers: kafka1:9092
   token: MNdzJaC/36c6xgXbDvppsCvJx0Thy564ZjAGmN8Tv1vxfhMUuJeOLxghz1Oq07Wk

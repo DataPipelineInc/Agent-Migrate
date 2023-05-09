@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import io.vertx.core.json.JsonObject
 
 data class SecurityConfig (
-    val authType: SecurityAuthType,
+    val authType: SecurityAuthType? = null,
     val kerberos: KerberosConfig? = null,
     val ldap: LdapConfig? = null,
     val scramConfig: ScramConfig? = null,

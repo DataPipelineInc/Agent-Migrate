@@ -10,6 +10,7 @@ import com.datapipeline.agent.util.sendRequest
 
 val LOGGER = KotlinLogging.logger {}
 val VERTX: Vertx = Vertx.vertx()
+var confResult: OracleNodeConfig? = null
 
 abstract class AbstractMigration {
     val mapper = jacksonObjectMapper()

@@ -1,6 +1,7 @@
 package com.datapipeline.agent
 
-import com.datapipeline.agent.entity.AsmDiskInfo
+import com.datapipeline.agent.DpConfSpec.required
+import com.datapipeline.agent.entity.OracleNodeConfig
 import com.uchuhimo.konf.ConfigSpec
 import com.uchuhimo.konf.Feature
 import com.uchuhimo.konf.source.yaml
@@ -30,7 +31,37 @@ object DpConfSpec : ConfigSpec("dp") {
     val token by required<String>()
 }
 
-object SrcSpec : ConfigSpec() {
+val nodeConfig by required<OracleNodeConfig>()
+
+val old_conf = com.uchuhimo.konf.Config {
+    addSpec(OldConfSpec)
+}.enable(Feature.OPTIONAL_SOURCE_BY_DEFAULT)
+    .from.yaml.file(CONF_PATH)
+    .from.env()
+
+val new_conf = com.uchuhimo.konf.Config {
+    addSpec(NewConfSpec)
+}.enable(Feature.OPTIONAL_SOURCE_BY_DEFAULT)
+    .from.yaml.file(CONF_PATH)
+    .from.env()
+
+val dp_conf = com.uchuhimo.konf.Config {
+    addSpec(DpConfSpec)
+}.enable(Feature.OPTIONAL_SOURCE_BY_DEFAULT)
+    .from.yaml.file(CONF_PATH)
+    .from.env()
+
+val conf_result = com.uchuhimo.konf.Config {
+    addItem(nodeConfig)
+}.from.json.file(RESULT_CONF_PATH, true)
+
+enum class Config(val host: String, val port: Int, val token: String?) {
+    OLD_AGENT(old_conf[OldConfSpec.host], old_conf[OldConfSpec.web_port], old_conf[OldConfSpec.token]),
+    NEW_AGENT(new_conf[NewConfSpec.host], new_conf[NewConfSpec.web_port], null),
+    DP(dp_conf[DpConfSpec.host], dp_conf[DpConfSpec.web_port], dp_conf[DpConfSpec.token])
+}
+
+/*object SrcSpec : ConfigSpec() {
     val id by required<Int>()
     val login by required<String>()
 }
@@ -54,31 +85,8 @@ object DataSpec : ConfigSpec() {
     val topicOffsets by required<Map<String, Map<String, Long>>>()
 }
 
-val old_conf = com.uchuhimo.konf.Config {
-    addSpec(OldConfSpec)
-}.enable(Feature.OPTIONAL_SOURCE_BY_DEFAULT)
-    .from.yaml.file(CONF_PATH)
-    .from.env()
-
-val new_conf = com.uchuhimo.konf.Config {
-    addSpec(NewConfSpec)
-}.enable(Feature.OPTIONAL_SOURCE_BY_DEFAULT)
-    .from.yaml.file(CONF_PATH)
-    .from.env()
-
-val dp_conf = com.uchuhimo.konf.Config {
-    addSpec(DpConfSpec)
-}.enable(Feature.OPTIONAL_SOURCE_BY_DEFAULT)
-    .from.yaml.file(CONF_PATH)
-    .from.env()
-
 val data_result = com.uchuhimo.konf.Config {
     addSpec(DataSpec)
 }.from.json.file(RESULT_DATA_PATH, true)
     .from.env()
-
-enum class Config(val host: String, val port: Int, val token: String?) {
-    OLD_AGENT(old_conf[OldConfSpec.host], old_conf[OldConfSpec.web_port], old_conf[OldConfSpec.token]),
-    NEW_AGENT(new_conf[NewConfSpec.host], new_conf[NewConfSpec.web_port], null),
-    DP(dp_conf[DpConfSpec.host], dp_conf[DpConfSpec.web_port], dp_conf[DpConfSpec.token])
-}
+*/
