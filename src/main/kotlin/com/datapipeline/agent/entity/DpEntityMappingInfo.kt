@@ -16,6 +16,8 @@ data class DpEntityMappingInfo(
     @JsonIgnore val sinkSchemaChanges: Set<JsonNode>? = null,
     @JsonIgnore val states: Set<JsonNode>? = null,
     @JsonIgnore val taskRef: Boolean = true,
+    @JsonIgnore val splitUndone: Boolean? = null,
+    @JsonIgnore val hasCalculation: Boolean? = null,
     @JsonIgnore val diffs: List<JsonNode>? = null
 ) {
     constructor() : this(0, 0, DpDataNodeEntity(), DpDataNodeEntity())

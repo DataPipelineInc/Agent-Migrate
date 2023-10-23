@@ -15,6 +15,7 @@ object OldConfSpec : ConfigSpec("old") {
     val web_port by optional(8303)
     val path by required<String>()
     val token by required<String>()
+    val skip_getusermap by optional(false)
 }
 
 object NewConfSpec : ConfigSpec("new") {

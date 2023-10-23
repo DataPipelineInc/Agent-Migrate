@@ -28,7 +28,7 @@ class ProgressMigration : AbstractMigration(), Migrate {
             )
             val savepoints = arrayListOf<Savepoint>()
             val scnArray = oldTransResp.bodyAsJsonArray()
-            if (!scnArray.isEmpty) {
+            if (scnArray != null && !scnArray.isEmpty) {
                 // translist 存在数据（包含未提交事务）
                 // 寻找最小 scn
                 val minScn = scnArray.minOf { it.toString().toLong() }

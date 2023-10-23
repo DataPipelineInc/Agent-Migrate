@@ -17,6 +17,7 @@ data class DpDataNodeEntity(
     @JsonIgnore val indices: List<JsonNode>? = null,
     @JsonIgnore val hasPk: Boolean = false,
     @JsonIgnore val deleted: Boolean = false,
+    @JsonIgnore val avgRowSize: Long? = null,
     @JsonIgnore val comment: String? = null,
     @JsonIgnore val createdAt: String? = null,
     @JsonIgnore val createdBy: JsonObject? = null,

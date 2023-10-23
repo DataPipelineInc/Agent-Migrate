@@ -20,34 +20,50 @@ class ConfigMigration : AbstractMigration(), Migrate {
     override fun migrate() {
         try {
             check(srcId)
+            val skipGetUserMap = old_conf[OldConfSpec.skip_getusermap]
             // 获取旧 agent 同步对象
-            val mapResp = sendRequest(Config.OLD_AGENT, GET, "/getusermap")
-            val mapArray = mapResp.bodyAsJsonArray()
-            val type = mapArray.getJsonObject(0)?.getString("type") ?: throw Exception("Failed to get old map type.")
             val list = arrayListOf<String>()
-            when (type) {
-                // 表级别，直接获取列表
-                "map_table" -> {
-                    for (i in 1 until mapArray.size()) {
-                        list.add(mapArray.getJsonObject(i).getString("table"))
+            if (skipGetUserMap) {
+                getTaskIds(new_conf[NewConfSpec.src_id]).forEach {
+                    val entitiesResp = sendRequest(Config.DP, GET, "/v3/entity/mappings/task/$it")
+                    val apiResult = mapper.readValue(entitiesResp.bodyAsString(), ApiResult::class.java)
+                    val apiData =
+                        mapper.readValue(jsonFactory.pojoNode(apiResult.data).toString(), ApiData::class.java)
+                    apiData.items.forEach { e ->
+                        val entity = mapper.convertValue(e, DpEntityMappingInfo::class.java)
+                        val srcEntity = entity.srcEntity
+                        list.add("${srcEntity.schema}.${srcEntity.name}")
                     }
                 }
-                // 用户级别或全库级别，查找关联的运行中任务并获取列表
-                "map_user", "map_db" -> {
-                    getTaskIds(new_conf[NewConfSpec.src_id]).forEach {
-                        val entitiesResp = sendRequest(Config.DP, GET, "/v3/entity/mappings/task/$it")
-                        val apiResult = mapper.readValue(entitiesResp.bodyAsString(), ApiResult::class.java)
-                        val apiData =
-                            mapper.readValue(jsonFactory.pojoNode(apiResult.data).toString(), ApiData::class.java)
-                        apiData.items.forEach { e ->
-                            val entity = mapper.convertValue(e, DpEntityMappingInfo::class.java)
-                            val srcEntity = entity.srcEntity
-                            list.add("${srcEntity.schema}.${srcEntity.name}")
+            } else {
+                val mapResp = sendRequest(Config.OLD_AGENT, GET, "/getusermap")
+                val mapArray = mapResp.bodyAsJsonArray()
+                val type =
+                    mapArray.getJsonObject(0)?.getString("type") ?: throw Exception("Failed to get old map type.")
+                when (type) {
+                    // 表级别，直接获取列表
+                    "map_table" -> {
+                        for (i in 1 until mapArray.size()) {
+                            list.add(mapArray.getJsonObject(i).getString("table"))
                         }
                     }
-                }
+                    // 用户级别或全库级别，查找关联的运行中任务并获取列表
+                    "map_user", "map_db" -> {
+                        getTaskIds(new_conf[NewConfSpec.src_id]).forEach {
+                            val entitiesResp = sendRequest(Config.DP, GET, "/v3/entity/mappings/task/$it")
+                            val apiResult = mapper.readValue(entitiesResp.bodyAsString(), ApiResult::class.java)
+                            val apiData =
+                                mapper.readValue(jsonFactory.pojoNode(apiResult.data).toString(), ApiData::class.java)
+                            apiData.items.forEach { e ->
+                                val entity = mapper.convertValue(e, DpEntityMappingInfo::class.java)
+                                val srcEntity = entity.srcEntity
+                                list.add("${srcEntity.schema}.${srcEntity.name}")
+                            }
+                        }
+                    }
 
-                else -> throw Exception("Unknown old map type : $type")
+                    else -> throw Exception("Unknown old map type : $type")
+                }
             }
             if (list.isEmpty()) {
                 onComplete("未检索到符合条件的表", mapOf("CONTINUE" to "false"))
