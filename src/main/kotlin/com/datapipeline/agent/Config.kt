@@ -30,6 +30,7 @@ object DpConfSpec : ConfigSpec("dp") {
     val web_port by required<Int>()
     val kafka_bootstrap_servers by required<String>()
     val token by required<String>()
+    val skip_wait by optional(false)
 }
 
 val nodeConfig by required<OracleNodeConfig>()

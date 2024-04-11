@@ -33,6 +33,9 @@ class DataMigration : AbstractMigration(), Migrate {
         val errorArgs = mutableMapOf<String, Any>()
         try {
             check(srcId)
+            if (confResult == null) {
+                confResult = conf_result[nodeConfig]
+            }
             checkNotNull(confResult)
             val taskIds = getTaskIds(srcId)
 
@@ -124,7 +127,7 @@ class DataMigration : AbstractMigration(), Migrate {
                             nineOffsetMap[it]
                         } ?: throw Exception("Failed to find nine offset of [${t.topic()}]")
                         LOGGER.info { "Topic nine offset: ${t.topic()} - $nineOffset" }
-                        if (endOffset == nineOffset) {
+                        if (endOffset == nineOffset || dp_conf[DpConfSpec.skip_wait]) {
                             remainingTopics.remove(t)
                         }
                     }
